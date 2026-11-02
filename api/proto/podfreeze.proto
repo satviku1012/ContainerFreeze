@@ -5,7 +5,18 @@ package podfreeze;
 option go_package = "github.com/podfreeze/core/api/proto/podfreeze";
 
 service Orchestrator {
+  rpc CheckpointContainer(CheckpointRequest) returns (OperationResponse);
   rpc WakeContainer(WakeRequest) returns (WakeResponse);
+}
+
+message CheckpointRequest {
+  string container_id = 1;
+  int32 pid = 2;
+}
+
+message OperationResponse {
+  bool success = 1;
+  string message = 2;
 }
 
 message WakeRequest {

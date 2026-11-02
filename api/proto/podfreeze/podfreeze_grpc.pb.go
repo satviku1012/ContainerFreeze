@@ -19,13 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Orchestrator_WakeContainer_FullMethodName = "/podfreeze.Orchestrator/WakeContainer"
+	Orchestrator_CheckpointContainer_FullMethodName = "/podfreeze.Orchestrator/CheckpointContainer"
+	Orchestrator_WakeContainer_FullMethodName       = "/podfreeze.Orchestrator/WakeContainer"
 )
 
 // OrchestratorClient is the client API for Orchestrator service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type OrchestratorClient interface {
+	CheckpointContainer(ctx context.Context, in *CheckpointRequest, opts ...grpc.CallOption) (*OperationResponse, error)
 	WakeContainer(ctx context.Context, in *WakeRequest, opts ...grpc.CallOption) (*WakeResponse, error)
 }
 
@@ -35,6 +37,16 @@ type orchestratorClient struct {
 
 func NewOrchestratorClient(cc grpc.ClientConnInterface) OrchestratorClient {
 	return &orchestratorClient{cc}
+}
+
+func (c *orchestratorClient) CheckpointContainer(ctx context.Context, in *CheckpointRequest, opts ...grpc.CallOption) (*OperationResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(OperationResponse)
+	err := c.cc.Invoke(ctx, Orchestrator_CheckpointContainer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *orchestratorClient) WakeContainer(ctx context.Context, in *WakeRequest, opts ...grpc.CallOption) (*WakeResponse, error) {
@@ -51,6 +63,7 @@ func (c *orchestratorClient) WakeContainer(ctx context.Context, in *WakeRequest,
 // All implementations must embed UnimplementedOrchestratorServer
 // for forward compatibility.
 type OrchestratorServer interface {
+	CheckpointContainer(context.Context, *CheckpointRequest) (*OperationResponse, error)
 	WakeContainer(context.Context, *WakeRequest) (*WakeResponse, error)
 	mustEmbedUnimplementedOrchestratorServer()
 }
@@ -62,6 +75,9 @@ type OrchestratorServer interface {
 // pointer dereference when methods are called.
 type UnimplementedOrchestratorServer struct{}
 
+func (UnimplementedOrchestratorServer) CheckpointContainer(context.Context, *CheckpointRequest) (*OperationResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CheckpointContainer not implemented")
+}
 func (UnimplementedOrchestratorServer) WakeContainer(context.Context, *WakeRequest) (*WakeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method WakeContainer not implemented")
 }
@@ -84,6 +100,24 @@ func RegisterOrchestratorServer(s grpc.ServiceRegistrar, srv OrchestratorServer)
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&Orchestrator_ServiceDesc, srv)
+}
+
+func _Orchestrator_CheckpointContainer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CheckpointRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(OrchestratorServer).CheckpointContainer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Orchestrator_CheckpointContainer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(OrchestratorServer).CheckpointContainer(ctx, req.(*CheckpointRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _Orchestrator_WakeContainer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -111,6 +145,10 @@ var Orchestrator_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "podfreeze.Orchestrator",
 	HandlerType: (*OrchestratorServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "CheckpointContainer",
+			Handler:    _Orchestrator_CheckpointContainer_Handler,
+		},
 		{
 			MethodName: "WakeContainer",
 			Handler:    _Orchestrator_WakeContainer_Handler,
