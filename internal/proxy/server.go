@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -44,6 +45,10 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "missing container id", http.StatusBadRequest)
 		return
 	}
+	if _, _, err := net.SplitHostPort(targetIP); err != nil {
+		http.Error(w, fmt.Sprintf("invalid target address: %v", err), http.StatusBadRequest)
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
@@ -72,5 +77,27 @@ func (s *Server) handleRequest(w http.ResponseWriter, r *http.Request) {
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		http.Error(w, fmt.Sprintf("proxy error: %v", err), http.StatusBadGateway)
 	}
+	if err := waitForTarget(ctx, targetIP); err != nil {
+		http.Error(w, fmt.Sprintf("container did not become ready: %v", err), http.StatusGatewayTimeout)
+		return
+	}
 	proxy.ServeHTTP(w, r)
+}
+
+func waitForTarget(ctx context.Context, target string) error {
+	dialer := net.Dialer{Timeout: 250 * time.Millisecond}
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		conn, err := dialer.DialContext(ctx, "tcp", target)
+		if err == nil {
+			_ = conn.Close()
+			return nil
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
 }
